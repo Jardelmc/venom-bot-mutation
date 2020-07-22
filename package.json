@@ -1,5 +1,5 @@
 {
-  "name": "venom-bot",
+  "name": "venom-bot-mutation",
   "version": "1.0.9",
   "description": "Venom is a high-performance system developed with JavaScript to create a bot for WhatsApp, support for creating any interaction, such as customer service, media sending, sentence recognition based on artificial intelligence and all types of design architecture for WhatsApp. ",
   "main": "dist/index.js",
@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/orkestral/venom.git"
+    "url": "git+git@github.com:Jardelmc/venom-bot-mutation.git"
   },
   "keywords": [
     "whatsapp",
@@ -49,12 +49,12 @@
   "author": "S2 Click",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/orkestral/venom/issues"
+    "url": "https://github.com/Jardelmc/venom-bot-mutation/issues"
   },
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/orkestral/venom#readme",
+  "homepage": "https://github.com/Jardelmc/venom-bot-mutation#readme",
   "devDependencies": {
     "@types/mime-types": "^2.1.0",
     "@types/node": "^13.11.1",
