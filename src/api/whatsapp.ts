@@ -57,87 +57,86 @@ import { Page } from 'puppeteer';
 import { decrypt } from './helpers/decrypt';
 import { ControlsLayer } from './layers/controls.layer';
 import { Message } from './model';
+import { kill } from '../controllers/initializer';
 
 declare module WAPI {
-    const arrayBufferToBase64: (buffer: ArrayBuffer) => string;
-    const downloadFile: (data: string) => Promise<string | boolean>;
+  const arrayBufferToBase64: (buffer: ArrayBuffer) => string;
+  const downloadFile: (data: string) => Promise<string | boolean>;
 }
 
 export class Whatsapp extends ControlsLayer {
-    constructor(public page: Page) {
-        super(page);
+  constructor(public page: Page) {
+    super(page);
+  }
+  /**
+   * Decrypts message file
+   * @param data Message object
+   * @returns Decrypted file buffer (null otherwise)
+   */
+
+  public async downloadFile(data: string) {
+    return await this.page.evaluate((data) => WAPI.downloadFile(data), data);
+  }
+  /**
+   * Get the puppeteer page instance
+   * @returns The Whatsapp page
+   */
+  get waPage(): Page {
+    return this.page;
+  }
+
+  /**
+   * Clicks on 'use here' button (When it get unlaunched)
+   * This method tracks the class of the button
+   * Whatsapp web might change this class name over the time
+   * Dont rely on this method
+   */
+  public async useHere() {
+    await this.page.waitForFunction(
+      () => {
+        const useHereClass = '.S7_rT.FV2Qy';
+        return document.querySelector(useHereClass);
+      },
+      { timeout: 0 }
+    );
+
+    await this.page.evaluate(() => {
+      const useHereClass = '.S7_rT.FV2Qy';
+      (<any>document.querySelector(useHereClass)).click();
+    });
+  }
+
+  /**
+   * Closes page and browser
+   */
+  public async close() {
+    await kill(this.page);
+    // if (this.page) {
+    //     await this.page.close();
+    // }
+
+    // if (this.page.browser) {
+    //     await this.page.browser().close();
+    // }
+  }
+
+  /**
+   * Decrypts message file
+   * @param message Message object
+   * @returns Decrypted file buffer (null otherwise)
+   */
+  public async decryptFile(message: Message) {
+    if (message.isMedia || message.isMMS) {
+      const url = message.clientUrl;
+      const encBase64 = await this.page.evaluate((url: string) => {
+        return fetch(url)
+          .then((response) => response.arrayBuffer())
+          .then((bytes) => WAPI.arrayBufferToBase64(bytes));
+      }, url);
+
+      return decrypt(encBase64, message);
+    } else {
+      return null;
     }
- /**
-     * Decrypts message file
-     * @param data Message object
-     * @returns Decrypted file buffer (null otherwise)
-     */
-
-    public async downloadFile(data: string) {
-        return await this.page.evaluate(
-            (data) => WAPI.downloadFile(data),
-            data
-          );
-      }
-    /**
-     * Get the puppeteer page instance
-     * @returns The Whatsapp page
-     */
-    get waPage(): Page {
-        return this.page;
-    }
-
-    /**
-     * Clicks on 'use here' button (When it get unlaunched)
-     * This method tracks the class of the button
-     * Whatsapp web might change this class name over the time
-     * Dont rely on this method
-     */
-    public async useHere() {
-        await this.page.waitForFunction(
-            () => {
-                const useHereClass = '.S7_rT.FV2Qy';
-                return document.querySelector(useHereClass);
-            },
-            { timeout: 0 }
-        );
-
-        await this.page.evaluate(() => {
-            const useHereClass = '.S7_rT.FV2Qy';
-            (<any>document.querySelector(useHereClass)).click();
-        });
-    }
-
-    /**
-     * Closes page and browser
-     */
-    public async close() {
-        if (this.page) {
-            await this.page.close();
-        }
-
-        if (this.page.browser) {
-            await this.page.browser().close();
-        }
-    }
-    
-    /**
-     * Decrypts message file
-     * @param message Message object
-     * @returns Decrypted file buffer (null otherwise)
-     */
-    public async decryptFile(message: Message) {
-        if (message.isMedia || message.isMMS) {
-            const url = message.clientUrl;
-            const encBase64 = await this.page.evaluate((url: string) => {
-                return fetch(url)
-                    .then((response) => response.arrayBuffer())
-                    .then((bytes) => WAPI.arrayBufferToBase64(bytes));
-            }, url);
-
-            return decrypt(encBase64, message);
-        } else {
-            return null;
-        }
-    }
+  }
 }

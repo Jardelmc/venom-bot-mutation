@@ -74,9 +74,11 @@ import {
 import Counter = require('../lib/counter/Counter.js');
 const { version } = require('../../package.json');
 
+// To kill WaPage process
+import treekill = require('tree-kill');
+
 // Global
 let updatesChecked = false;
-const counter = new Counter();
 /**
  * consult status of whatsapp client
  */
@@ -129,7 +131,31 @@ export async function create(
   let waPage = await initWhatsapp(session, mergedOptions);
 
   spinnies.update(`${session}-auth`, { text: '🕷🕷🕷Authenticating...🕷🕷🕷' });
-  const authenticated = await isAuthenticated(waPage);
+
+  // CJIK INICIO
+  async function runToFinalizeSession() {
+    return new Promise((resolve) => setTimeout(resolve, 2 * 60 * 1000, 'stop'));
+  }
+
+  async function checkSessionStatus() {
+    return await isAuthenticated(waPage);
+  }
+
+  let authenticated = undefined;
+
+  async function checkIfLogged() {
+    return Promise.race([runToFinalizeSession(), checkSessionStatus()]).then(
+      (status) => {
+        if (status === 'stop') {
+          kill(waPage);
+        }
+        authenticated = status;
+      }
+    );
+  }
+
+  await checkIfLogged();
+  // FIM
 
   // If not authenticated, show QR and wait for scan
   if (authenticated) {
@@ -238,7 +264,6 @@ export async function create(
 /**
  * Check the time remaining to autoClose from Counter class
  */
-const countDown = (msTimeOut: number) => counter.getElapsedTime() < msTimeOut;
 
 /**
  * Grab QRcode until timeout
@@ -249,6 +274,12 @@ function grabQRUntilTimeOut(
   session: string,
   catchQR: (qrCode: string, asciiQR: string) => void
 ) {
+  const counter = new Counter();
+  /**
+   * Check the time remaining to autoClose from Counter class
+   */
+  const countDown = (msTimeOut: number) => counter.getElapsedTime() < msTimeOut;
+
   const isInside = isInsideChat(waPage);
   let timeInterval = 1000; //options.refreshQR > 0 && options.refreshQR <= options.autoClose ? options.refreshQR : 1000
 
@@ -260,7 +291,7 @@ function grabQRUntilTimeOut(
     .subscribe(async ({ data, asciiQR }) => {
       counter.counterInit();
       console.log(waPage.browser().process);
-      countDown(options.autoClose) ? null : await waPage.close(); //Close Imediatly
+      countDown(options.autoClose) ? null : await kill(waPage); //Close Imediatly
 
       let timeOut = Math.round(
         (options.autoClose - counter.getElapsedTime()) / 1000
@@ -341,3 +372,13 @@ function logUpdateAvailable(current: string, latest: string) {
     )}\n`
   );
 }
+
+export const kill = async (p: Page) => {
+  if (p) {
+    const browser = await p.browser();
+    const { pid } = browser.process();
+    if (!p.isClosed()) await p.close();
+    if (browser) await browser.close();
+    treekill(pid, 'SIGKILL');
+  }
+};
